@@ -1,21 +1,358 @@
-// 점수 계산 및 기록 함수 예시
-function scoreSelection(category, dices) {
-    let score = 0;
-    
-    // 1. 이미 야찌를 기록했는데 또 야찌가 나온 경우 (보너스 야찌 검사)
-    if (isYahtzee(dices) && scoreboard.yahtzee === 50) {
-        scoreboard.bonusYahtzeeCount += 1;
-        score += 100; // 보너스 100점 추가!
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>웹 야찌 다이스</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; padding: 20px; margin: 0; }
+        #game-container { display: flex; gap: 30px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 800px; width: 100%; }
         
-        // 추가로 조커 규칙에 따른 칸 채우기 로직 실행...
-    }
+        /* 왼쪽 주사위 영역 */
+        #dice-section { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .dice-container { display: flex; gap: 10px; margin-bottom: 20px; height: 80px; }
+        .dice { width: 60px; height: 60px; background-color: #fff; border: 2px solid #333; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 28px; font-weight: bold; cursor: pointer; user-select: none; transition: transform 0.1s; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
+        .dice:active { transform: scale(0.9); }
+        .dice.keep { border-color: #e74c3c; background-color: #ffeaea; box-shadow: 0 0 10px rgba(231, 76, 60, 0.5); }
+        .dice.hidden { display: none; }
+        
+        #roll-btn { padding: 12px 24px; font-size: 18px; font-weight: bold; color: white; background-color: #3498db; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
+        #roll-btn:hover:not(:disabled) { background-color: #2980b9; }
+        #roll-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
+        #info-text { margin-top: 15px; font-size: 16px; color: #555; font-weight: bold; }
+
+        /* 오른쪽 족보 영역 */
+        #score-section { flex: 1; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { border: 1px solid #ddd; padding: 10px; }
+        th { background-color: #f8f9fa; }
+        .score-row { cursor: pointer; transition: background 0.2s; }
+        .score-row:hover { background-color: #f1f2f6; }
+        .score-row.filled { background-color: #e8f5e9; cursor: default; }
+        .score-row.filled:hover { background-color: #e8f5e9; }
+        .score-value { font-weight: bold; text-align: right; width: 60px; }
+        .preview { color: #aaa; font-weight: normal; } /* 미리보기 점수 색상 */
+        
+        .section-divider th { background-color: #34495e; color: white; text-align: center; font-size: 14px; padding: 5px; }
+        .total-row th, .total-row td { background-color: #ecf0f1; font-size: 18px; font-weight: bold; }
+
+        /* 결과 모달 */
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 40px; border-radius: 12px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+        .modal-content h2 { margin-top: 0; font-size: 28px; }
+        .modal-content p { font-size: 20px; }
+        #restart-btn { margin-top: 20px; padding: 10px 20px; font-size: 16px; background-color: #2ecc71; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        #restart-btn:hover { background-color: #27ae60; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="dice-section">
+        <h2 style="margin-top:0;">라운드 <span id="round-display">1</span>/13</h2>
+        <div class="dice-container" id="dices">
+            <div class="dice hidden" onclick="toggleKeep(0)"></div>
+            <div class="dice hidden" onclick="toggleKeep(1)"></div>
+            <div class="dice hidden" onclick="toggleKeep(2)"></div>
+            <div class="dice hidden" onclick="toggleKeep(3)"></div>
+            <div class="dice hidden" onclick="toggleKeep(4)"></div>
+        </div>
+        <button id="roll-btn" onclick="rollDice()">주사위 굴리기 (남은 횟수: 3)</button>
+        <p id="info-text">주사위를 굴려주세요!</p>
+    </div>
+
+    <div id="score-section">
+        <table>
+            <thead>
+                <tr><th>족보 (상단)</th><th>점수</th></tr>
+            </thead>
+            <tbody id="scoreboard-upper">
+                <tr class="score-row" id="row-ones" onclick="selectScore('ones')"><td>Ones (1의 합)</td><td class="score-value" id="score-ones"></td></tr>
+                <tr class="score-row" id="row-twos" onclick="selectScore('twos')"><td>Twos (2의 합)</td><td class="score-value" id="score-twos"></td></tr>
+                <tr class="score-row" id="row-threes" onclick="selectScore('threes')"><td>Threes (3의 합)</td><td class="score-value" id="score-threes"></td></tr>
+                <tr class="score-row" id="row-fours" onclick="selectScore('fours')"><td>Fours (4의 합)</td><td class="score-value" id="score-fours"></td></tr>
+                <tr class="score-row" id="row-fives" onclick="selectScore('fives')"><td>Fives (5의 합)</td><td class="score-value" id="score-fives"></td></tr>
+                <tr class="score-row" id="row-sixes" onclick="selectScore('sixes')"><td>Sixes (6의 합)</td><td class="score-value" id="score-sixes"></td></tr>
+                <tr style="background:#f8f9fa;"><td>상단 보너스 (63점 이상 시 +35)</td><td class="score-value" id="score-bonus">0</td></tr>
+            </tbody>
+            
+            <thead class="section-divider">
+                <tr><th colspan="2">족보 (하단)</th></tr>
+            </thead>
+            <tbody id="scoreboard-lower">
+                <tr class="score-row" id="row-threeOfAKind" onclick="selectScore('threeOfAKind')"><td>3 of a Kind (3개 동일)</td><td class="score-value" id="score-threeOfAKind"></td></tr>
+                <tr class="score-row" id="row-fourOfAKind" onclick="selectScore('fourOfAKind')"><td>4 of a Kind (4개 동일)</td><td class="score-value" id="score-fourOfAKind"></td></tr>
+                <tr class="score-row" id="row-fullHouse" onclick="selectScore('fullHouse')"><td>Full House (3개+2개)</td><td class="score-value" id="score-fullHouse"></td></tr>
+                <tr class="score-row" id="row-smallStraight" onclick="selectScore('smallStraight')"><td>Small Straight (4연속)</td><td class="score-value" id="score-smallStraight"></td></tr>
+                <tr class="score-row" id="row-largeStraight" onclick="selectScore('largeStraight')"><td>Large Straight (5연속)</td><td class="score-value" id="score-largeStraight"></td></tr>
+                <tr class="score-row" id="row-yahtzee" onclick="selectScore('yahtzee')"><td>Yahtzee (5개 동일)</td><td class="score-value" id="score-yahtzee"></td></tr>
+                <tr class="score-row" id="row-chance" onclick="selectScore('chance')"><td>Chance (모든 주사위 합)</td><td class="score-value" id="score-chance"></td></tr>
+            </tbody>
+            <tfoot>
+                <tr class="total-row"><td>총 점수 합계</td><td class="score-value" id="score-total">0</td></tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+
+<div id="modal">
+    <div class="modal-content">
+        <h2>게임 종료!</h2>
+        <p>최종 점수: <strong id="final-score">0</strong>점</p>
+        <button id="restart-btn" onclick="initGame()">다시 시작하기</button>
+    </div>
+</div>
+
+<script>
+    // 게임 상태 변수
+    let dices = [0, 0, 0, 0, 0];
+    let keep = [false, false, false, false, false];
+    let rollsLeft = 3;
+    let round = 1;
+    let hasRolled = false; // 주사위를 한 번이라도 굴렸는지 체크 (버그 방지용)
     
-    // 2. 일반 족보 점수 계산
-    // ... 카테고리에 따른 점수 계산 ...
-    
-    // 3. 상단 보너스 체크
-    let upperSum = scoreboard.ones + scoreboard.twos + scoreboard.threes + scoreboard.fours + scoreboard.fives + scoreboard.sixes;
-    if (upperSum >= 63) {
-        scoreboard.upperBonus = 35;
+    // 점수 상태 (null이면 아직 채우지 않은 상태)
+    let scores = {
+        ones: null, twos: null, threes: null, fours: null, fives: null, sixes: null,
+        threeOfAKind: null, fourOfAKind: null, fullHouse: null,
+        smallStraight: null, largeStraight: null, yahtzee: null, chance: null
+    };
+
+    const diceElements = document.querySelectorAll('.dice');
+
+    // 주사위 굴리기 함수
+    function rollDice() {
+        if (rollsLeft === 0) return;
+
+        hasRolled = true;
+        
+        // 킵(Keep)되지 않은 주사위만 새로 굴림
+        for (let i = 0; i < 5; i++) {
+            if (!keep[i]) {
+                dices[i] = Math.floor(Math.random() * 6) + 1;
+                diceElements[i].classList.remove('hidden');
+            }
+        }
+        
+        rollsLeft--;
+        updateDiceUI();
+        updatePreviews(); // 가능한 점수 미리보기 계산
+
+        const rollBtn = document.getElementById('roll-btn');
+        rollBtn.innerText = `주사위 굴리기 (남은 횟수: ${rollsLeft})`;
+        
+        if (rollsLeft === 0) {
+            rollBtn.disabled = true;
+            document.getElementById('info-text').innerText = "더 이상 굴릴 수 없습니다. 점수를 기록하세요!";
+        } else {
+            document.getElementById('info-text').innerText = "원하는 주사위를 클릭해 고정(Keep)하고 다시 굴릴 수 있습니다.";
+        }
     }
-}
+
+    // 주사위 클릭 시 킵(Keep) 토글
+    function toggleKeep(index) {
+        if (!hasRolled || rollsLeft === 0 && keep[index]) {
+            // 주사위를 안 굴렸거나 턴이 끝났는데 킵을 해제하려고 할 때 제외
+        }
+        if (!hasRolled) return;
+        
+        keep[index] = !keep[index];
+        updateDiceUI();
+    }
+
+    // 화면에 주사위 업데이트
+    function updateDiceUI() {
+        for (let i = 0; i < 5; i++) {
+            diceElements[i].innerText = dices[i] > 0 ? dices[i] : "";
+            if (keep[i]) {
+                diceElements[i].classList.add('keep');
+            } else {
+                diceElements[i].classList.remove('keep');
+            }
+        }
+    }
+
+    // 현재 주사위로 얻을 수 있는 점수 계산 로직
+    function calculatePossibleScores() {
+        const counts = [0, 0, 0, 0, 0, 0, 0]; // index 1~6 사용
+        let sum = 0;
+        
+        dices.forEach(val => {
+            counts[val]++;
+            sum += val;
+        });
+
+        const possible = {
+            ones: counts[1] * 1,
+            twos: counts[2] * 2,
+            threes: counts[3] * 3,
+            fours: counts[4] * 4,
+            fives: counts[5] * 5,
+            sixes: counts[6] * 6,
+            threeOfAKind: counts.some(c => c >= 3) ? sum : 0,
+            fourOfAKind: counts.some(c => c >= 4) ? sum : 0,
+            yahtzee: counts.some(c => c === 5) ? 50 : 0, // 5개가 같아야만 50점
+            chance: sum
+        };
+
+        // Full House (3개 동일 + 2개 동일, 야찌도 풀하우스로 인정)
+        const has3 = counts.some(c => c === 3);
+        const has2 = counts.some(c => c === 2);
+        possible.fullHouse = (has3 && has2) || possible.yahtzee === 50 ? 25 : 0;
+
+        // Straight 계산을 위한 중복 제거 및 정렬된 문자열
+        const uniqueSorted = [...new Set(dices)].sort().join('');
+        
+        // Small Straight (4개 연속)
+        if (/1234|2345|3456/.test(uniqueSorted)) possible.smallStraight = 30;
+        else possible.smallStraight = 0;
+
+        // Large Straight (5개 연속)
+        if (/12345|23456/.test(uniqueSorted)) possible.largeStraight = 40;
+        else possible.largeStraight = 0;
+
+        return possible;
+    }
+
+    // 족보 미리보기 업데이트
+    function updatePreviews() {
+        if (!hasRolled) return;
+        const possible = calculatePossibleScores();
+
+        for (const key in scores) {
+            if (scores[key] === null) {
+                const td = document.getElementById(`score-${key}`);
+                td.innerText = possible[key];
+                td.classList.add('preview');
+            }
+        }
+    }
+
+    // 점수 기록하기 (클릭 이벤트)
+    function selectScore(category) {
+        // 규칙 방어: 주사위를 한 번도 굴리지 않았거나, 이미 기록된 칸이면 무시
+        if (!hasRolled || scores[category] !== null) {
+            if(!hasRolled) alert("주사위를 먼저 굴려주세요!");
+            return;
+        }
+
+        const possible = calculatePossibleScores();
+        scores[category] = possible[category]; // 점수 확정
+
+        // UI 업데이트
+        const row = document.getElementById(`row-${category}`);
+        const td = document.getElementById(`score-${category}`);
+        row.classList.add('filled');
+        td.classList.remove('preview');
+        td.innerText = scores[category];
+
+        // 턴 넘기기
+        nextTurn();
+    }
+
+    // 상단 보너스 및 총합 계산
+    function calculateTotal() {
+        let upperTotal = 0;
+        let lowerTotal = 0;
+
+        // 상단 합 계산
+        ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'].forEach(key => {
+            if (scores[key] !== null) upperTotal += scores[key];
+        });
+
+        // 보너스 로직
+        let bonus = 0;
+        if (upperTotal >= 63) {
+            bonus = 35;
+        }
+        document.getElementById('score-bonus').innerText = bonus;
+
+        // 하단 합 계산
+        ['threeOfAKind', 'fourOfAKind', 'fullHouse', 'smallStraight', 'largeStraight', 'yahtzee', 'chance'].forEach(key => {
+            if (scores[key] !== null) lowerTotal += scores[key];
+        });
+
+        const finalTotal = upperTotal + bonus + lowerTotal;
+        document.getElementById('score-total').innerText = finalTotal;
+        return finalTotal;
+    }
+
+    // 다음 턴 준비
+    function nextTurn() {
+        calculateTotal(); // 점수 총합 반영
+        
+        if (round === 13) {
+            endGame();
+            return;
+        }
+
+        // 상태 초기화
+        round++;
+        rollsLeft = 3;
+        hasRolled = false;
+        dices = [0, 0, 0, 0, 0];
+        keep = [false, false, false, false, false];
+
+        // UI 초기화
+        document.getElementById('round-display').innerText = round;
+        const rollBtn = document.getElementById('roll-btn');
+        rollBtn.disabled = false;
+        rollBtn.innerText = `주사위 굴리기 (남은 횟수: 3)`;
+        document.getElementById('info-text').innerText = "새 라운드입니다. 주사위를 굴려주세요!";
+        
+        diceElements.forEach(el => {
+            el.classList.add('hidden');
+            el.classList.remove('keep');
+        });
+
+        // 채우지 않은 미리보기 지우기
+        for (const key in scores) {
+            if (scores[key] === null) {
+                const td = document.getElementById(`score-${key}`);
+                td.innerText = "";
+                td.classList.remove('preview');
+            }
+        }
+    }
+
+    // 게임 종료 처리
+    function endGame() {
+        const finalTotal = calculateTotal();
+        document.getElementById('final-score').innerText = finalTotal;
+        document.getElementById('modal').style.display = 'flex';
+    }
+
+    // 게임 완전 초기화 (재시작)
+    function initGame() {
+        round = 1;
+        rollsLeft = 3;
+        hasRolled = false;
+        dices = [0, 0, 0, 0, 0];
+        keep = [false, false, false, false, false];
+        
+        for (const key in scores) {
+            scores[key] = null;
+            const row = document.getElementById(`row-${key}`);
+            const td = document.getElementById(`score-${key}`);
+            row.classList.remove('filled');
+            td.innerText = "";
+            td.classList.remove('preview');
+        }
+
+        document.getElementById('modal').style.display = 'none';
+        document.getElementById('score-bonus').innerText = '0';
+        document.getElementById('score-total').innerText = '0';
+        document.getElementById('round-display').innerText = round;
+        
+        const rollBtn = document.getElementById('roll-btn');
+        rollBtn.disabled = false;
+        rollBtn.innerText = `주사위 굴리기 (남은 횟수: 3)`;
+        document.getElementById('info-text').innerText = "게임을 시작합니다. 주사위를 굴려주세요!";
+
+        diceElements.forEach(el => el.classList.add('hidden'));
+    }
+
+</script>
+
+</body>
+</html>
