@@ -1,55 +1,99 @@
-<!DOCTYPE html>
+html_content = """<!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>웹 야찌 다이스</title>
+    <title>웹 야찌 다이스 - 2인용 로컬 대전</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; padding: 20px; margin: 0; }
-        #game-container { display: flex; gap: 30px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 800px; width: 100%; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; display: flex; justify-content: center; padding: 20px; margin: 0; transition: background-color 0.3s; }
+        body.p1-turn { background-color: #e3f2fd; }
+        body.p2-turn { background-color: #e8f5e9; }
+        
+        #game-container { display: flex; gap: 30px; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 950px; width: 100%; }
         
         /* 왼쪽 주사위 영역 */
-        #dice-section { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .dice-container { display: flex; gap: 10px; margin-bottom: 20px; height: 80px; }
-        .dice { width: 60px; height: 60px; background-color: #fff; border: 2px solid #333; border-radius: 10px; display: flex; justify-content: center; align-items: center; font-size: 28px; font-weight: bold; cursor: pointer; user-select: none; transition: transform 0.1s; box-shadow: 2px 2px 5px rgba(0,0,0,0.2); }
-        .dice:active { transform: scale(0.9); }
-        .dice.keep { border-color: #e74c3c; background-color: #ffeaea; box-shadow: 0 0 10px rgba(231, 76, 60, 0.5); }
+        #dice-section { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border-right: 1px solid #eee; padding-right: 25px; }
+        
+        .turn-indicator { font-size: 22px; font-weight: bold; margin-bottom: 5px; padding: 10px 20px; border-radius: 30px; text-align: center; width: 85%; box-shadow: 0 2px 6px rgba(0,0,0,0.05); transition: all 0.3s; }
+        .p1-indicator { color: #1e88e5; background-color: #ffffff; border: 3px solid #1e88e5; }
+        .p2-indicator { color: #2e7d32; background-color: #ffffff; border: 3px solid #2e7d32; }
+        
+        .round-text { font-size: 16px; color: #666; margin-bottom: 25px; font-weight: 500; }
+        
+        .dice-container { display: flex; gap: 12px; margin-bottom: 25px; height: 80px; }
+        .dice { width: 64px; height: 64px; background-color: #fff; border: 2px solid #333; border-radius: 12px; display: flex; justify-content: center; align-items: center; font-size: 30px; font-weight: bold; cursor: pointer; user-select: none; transition: transform 0.1s, border-color 0.2s, background-color 0.2s; box-shadow: 2px 2px 6px rgba(0,0,0,0.15); }
+        .dice:active { transform: scale(0.92); }
+        .dice.keep { border-color: #e74c3c; background-color: #ffeaea; box-shadow: 0 0 12px rgba(231, 76, 60, 0.4); }
         .dice.hidden { display: none; }
         
-        #roll-btn { padding: 12px 24px; font-size: 18px; font-weight: bold; color: white; background-color: #3498db; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; }
-        #roll-btn:hover:not(:disabled) { background-color: #2980b9; }
-        #roll-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
-        #info-text { margin-top: 15px; font-size: 16px; color: #555; font-weight: bold; }
+        #roll-btn { padding: 14px 28px; font-size: 18px; font-weight: bold; color: white; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s, transform 0.1s; width: 85%; box-shadow: 0 3px 6px rgba(0,0,0,0.1); }
+        #roll-btn:active { transform: scale(0.98); }
+        .p1-btn { background-color: #1e88e5; }
+        .p1-btn:hover:not(:disabled) { background-color: #1565c0; }
+        .p2-btn { background-color: #2e7d32; }
+        .p2-btn:hover:not(:disabled) { background-color: #1b5e20; }
+        #roll-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; box-shadow: none; }
+        
+        #info-text { margin-top: 20px; font-size: 15px; color: #555; font-weight: bold; text-align: center; min-height: 44px; line-height: 1.4; }
 
         /* 오른쪽 족보 영역 */
-        #score-section { flex: 1; }
-        table { width: 100%; border-collapse: collapse; text-align: left; }
-        th, td { border: 1px solid #ddd; padding: 10px; }
-        th { background-color: #f8f9fa; }
+        #score-section { flex: 1.3; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px; }
+        th, td { border: 1px solid #ddd; padding: 9px 12px; }
+        th { background-color: #f8f9fa; text-align: center; }
+        
+        .col-category { font-weight: 600; color: #2c3e50; }
+        .score-cell { font-weight: bold; text-align: right; width: 90px; font-size: 15px; transition: background-color 0.2s; }
+        
+        /* 테이블 헤더 스타일링 */
+        th.p1-header { color: #1e88e5; background-color: #f1f8ff; font-size: 16px; transition: all 0.3s; border-bottom: 3px solid #1e88e5; }
+        th.p2-header { color: #2e7d32; background-color: #f4fbf7; font-size: 16px; transition: all 0.3s; border-bottom: 3px solid #2e7d32; }
+        th.p1-header.active-turn { background-color: #1e88e5; color: white; }
+        th.p2-header.active-turn { background-color: #2e7d32; color: white; }
+        
+        /* 가독성을 위한 열 음영 효과 */
+        td.p1-col-cell.active-cell-bg { background-color: #f7faff; }
+        td.p2-col-cell.active-cell-bg { background-color: #f8fdfa; }
+        
         .score-row { cursor: pointer; transition: background 0.2s; }
         .score-row:hover { background-color: #f1f2f6; }
-        .score-row.filled { background-color: #e8f5e9; cursor: default; }
-        .score-row.filled:hover { background-color: #e8f5e9; }
-        .score-value { font-weight: bold; text-align: right; width: 60px; }
-        .preview { color: #aaa; font-weight: normal; } /* 미리보기 점수 색상 */
         
-        .section-divider th { background-color: #34495e; color: white; text-align: center; font-size: 14px; padding: 5px; }
-        .total-row th, .total-row td { background-color: #ecf0f1; font-size: 18px; font-weight: bold; }
+        /* 점수가 확정된 칸 스타일 */
+        .score-cell.filled-p1 { background-color: #d0e7ff; color: #0d47a1; cursor: default; }
+        .score-cell.filled-p2 { background-color: #c8e6c9; color: #1b5e20; cursor: default; }
+        
+        .preview { color: #b0bec5; font-weight: normal; font-style: italic; }
+        
+        .section-divider th { background-color: #34495e; color: white; text-align: center; font-size: 13px; padding: 5px; font-weight: bold; }
+        .total-row th, .total-row td { background-color: #ecf0f1; font-size: 16px; font-weight: bold; color: #2c3e50; }
+        .bonus-row td { color: #666; font-size: 13px; background-color: #fafafa; }
 
         /* 결과 모달 */
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; }
-        .modal-content { background: white; padding: 40px; border-radius: 12px; text-align: center; box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-        .modal-content h2 { margin-top: 0; font-size: 28px; }
-        .modal-content p { font-size: 20px; }
-        #restart-btn { margin-top: 20px; padding: 10px 20px; font-size: 16px; background-color: #2ecc71; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(4px); }
+        .modal-content { background: white; padding: 40px; border-radius: 16px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.3); max-width: 480px; width: 100%; }
+        .modal-content h2 { margin-top: 0; font-size: 34px; color: #2c3e50; }
+        
+        .winner-announcement { font-size: 24px; font-weight: bold; margin: 25px 0; padding: 18px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .winner-p1 { background-color: #e3f2fd; color: #1e88e5; border: 3px dashed #1e88e5; }
+        .winner-p2 { background-color: #e8f5e9; color: #2e7d32; border: 3px dashed #2e7d32; }
+        .winner-draw { background-color: #f5f5f5; color: #616161; border: 3px dashed #9e9e9e; }
+        
+        .final-scores { display: flex; justify-content: space-around; margin: 25px 0; font-size: 20px; border-top: 1px solid #eee; border-bottom: 1px solid #eee; padding: 15px 0; }
+        .final-scores strong { font-size: 24px; }
+        .score-p1-text { color: #1e88e5; }
+        .score-p2-text { color: #2e7d32; }
+        
+        #restart-btn { margin-top: 10px; padding: 14px 35px; font-size: 18px; font-weight: bold; background-color: #2ecc71; color: white; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s; box-shadow: 0 4px 6px rgba(46, 204, 113, 0.2); }
         #restart-btn:hover { background-color: #27ae60; }
     </style>
 </head>
-<body>
+<body class="p1-turn">
 
 <div id="game-container">
     <div id="dice-section">
-        <h2 style="margin-top:0;">라운드 <span id="round-display">1</span>/13</h2>
+        <div id="info-text-turn" class="turn-indicator p1-indicator">플레이어 1의 턴</div>
+        <div class="round-text">라운드: <span id="round-display">1</span> / 13</div>
+        
         <div class="dice-container" id="dices">
             <div class="dice hidden" onclick="toggleKeep(0)"></div>
             <div class="dice hidden" onclick="toggleKeep(1)"></div>
@@ -57,39 +101,104 @@
             <div class="dice hidden" onclick="toggleKeep(3)"></div>
             <div class="dice hidden" onclick="toggleKeep(4)"></div>
         </div>
-        <button id="roll-btn" onclick="rollDice()">주사위 굴리기 (남은 횟수: 3)</button>
+        
+        <button id="roll-btn" class="p1-btn" onclick="rollDice()">주사위 굴리기 (남은 횟수: 3)</button>
         <p id="info-text">주사위를 굴려주세요!</p>
     </div>
 
     <div id="score-section">
         <table>
             <thead>
-                <tr><th>족보 (상단)</th><th>점수</th></tr>
+                <tr>
+                    <th style="text-align: left;">야찌 족보 목록</th>
+                    <th id="p1-header" class="p1-header active-turn">플레이어 1</th>
+                    <th id="p2-header" class="p2-header">플레이어 2</th>
+                </tr>
             </thead>
             <tbody id="scoreboard-upper">
-                <tr class="score-row" id="row-ones" onclick="selectScore('ones')"><td>Ones (1의 합)</td><td class="score-value" id="score-ones"></td></tr>
-                <tr class="score-row" id="row-twos" onclick="selectScore('twos')"><td>Twos (2의 합)</td><td class="score-value" id="score-twos"></td></tr>
-                <tr class="score-row" id="row-threes" onclick="selectScore('threes')"><td>Threes (3의 합)</td><td class="score-value" id="score-threes"></td></tr>
-                <tr class="score-row" id="row-fours" onclick="selectScore('fours')"><td>Fours (4의 합)</td><td class="score-value" id="score-fours"></td></tr>
-                <tr class="score-row" id="row-fives" onclick="selectScore('fives')"><td>Fives (5의 합)</td><td class="score-value" id="score-fives"></td></tr>
-                <tr class="score-row" id="row-sixes" onclick="selectScore('sixes')"><td>Sixes (6의 합)</td><td class="score-value" id="score-sixes"></td></tr>
-                <tr style="background:#f8f9fa;"><td>상단 보너스 (63점 이상 시 +35)</td><td class="score-value" id="score-bonus">0</td></tr>
+                <tr class="score-row" onclick="selectScore('ones')">
+                    <td class="col-category">Ones (1의 합)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-ones"></td>
+                    <td class="score-cell p2-col-cell" id="p2-ones"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('twos')">
+                    <td class="col-category">Twos (2의 합)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-twos"></td>
+                    <td class="score-cell p2-col-cell" id="p2-twos"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('threes')">
+                    <td class="col-category">Threes (3의 합)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-threes"></td>
+                    <td class="score-cell p2-col-cell" id="p2-threes"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('fours')">
+                    <td class="col-category">Fours (4의 합)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-fours"></td>
+                    <td class="score-cell p2-col-cell" id="p2-fours"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('fives')">
+                    <td class="col-category">Fives (5의 합)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-fives"></td>
+                    <td class="score-cell p2-col-cell" id="p2-fives"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('sixes')">
+                    <td class="col-category">Sixes (6의 합)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-sixes"></td>
+                    <td class="score-cell p2-col-cell" id="p2-sixes"></td>
+                </tr>
+                <tr class="bonus-row">
+                    <td class="col-category" style="font-style: normal; color: #555;">상단 보너스 (63점 이상 시 +35)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-bonus" style="text-align: right;">0 (0/63)</td>
+                    <td class="score-cell p2-col-cell" id="p2-bonus" style="text-align: right;">0 (0/63)</td>
+                </tr>
             </tbody>
             
-            <thead class="section-divider">
-                <tr><th colspan="2">족보 (하단)</th></tr>
-            </thead>
+            <tbody class="section-divider">
+                <tr><th colspan="3">하단 포커 조합 족보</th></tr>
+            </tbody>
             <tbody id="scoreboard-lower">
-                <tr class="score-row" id="row-threeOfAKind" onclick="selectScore('threeOfAKind')"><td>3 of a Kind (3개 동일)</td><td class="score-value" id="score-threeOfAKind"></td></tr>
-                <tr class="score-row" id="row-fourOfAKind" onclick="selectScore('fourOfAKind')"><td>4 of a Kind (4개 동일)</td><td class="score-value" id="score-fourOfAKind"></td></tr>
-                <tr class="score-row" id="row-fullHouse" onclick="selectScore('fullHouse')"><td>Full House (3개+2개)</td><td class="score-value" id="score-fullHouse"></td></tr>
-                <tr class="score-row" id="row-smallStraight" onclick="selectScore('smallStraight')"><td>Small Straight (4연속)</td><td class="score-value" id="score-smallStraight"></td></tr>
-                <tr class="score-row" id="row-largeStraight" onclick="selectScore('largeStraight')"><td>Large Straight (5연속)</td><td class="score-value" id="score-largeStraight"></td></tr>
-                <tr class="score-row" id="row-yahtzee" onclick="selectScore('yahtzee')"><td>Yahtzee (5개 동일)</td><td class="score-value" id="score-yahtzee"></td></tr>
-                <tr class="score-row" id="row-chance" onclick="selectScore('chance')"><td>Chance (모든 주사위 합)</td><td class="score-value" id="score-chance"></td></tr>
+                <tr class="score-row" onclick="selectScore('threeOfAKind')">
+                    <td class="col-category">3 of a Kind (3개 동일)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-threeOfAKind"></td>
+                    <td class="score-cell p2-col-cell" id="p2-threeOfAKind"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('fourOfAKind')">
+                    <td class="col-category">4 of a Kind (4개 동일)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-fourOfAKind"></td>
+                    <td class="score-cell p2-col-cell" id="p2-fourOfAKind"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('fullHouse')">
+                    <td class="col-category">Full House (3개+2개)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-fullHouse"></td>
+                    <td class="score-cell p2-col-cell" id="p2-fullHouse"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('smallStraight')">
+                    <td class="col-category">Small Straight (4연속 변형)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-smallStraight"></td>
+                    <td class="score-cell p2-col-cell" id="p2-smallStraight"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('largeStraight')">
+                    <td class="col-category">Large Straight (5연속 변형)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-largeStraight"></td>
+                    <td class="score-cell p2-col-cell" id="p2-largeStraight"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('yahtzee')">
+                    <td class="col-category">Yahtzee (5개 동일 최고족보)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-yahtzee"></td>
+                    <td class="score-cell p2-col-cell" id="p2-yahtzee"></td>
+                </tr>
+                <tr class="score-row" onclick="selectScore('chance')">
+                    <td class="col-category">Chance (주사위 총합 자유칸)</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-chance"></td>
+                    <td class="score-cell p2-col-cell" id="p2-chance"></td>
+                </tr>
             </tbody>
             <tfoot>
-                <tr class="total-row"><td>총 점수 합계</td><td class="score-value" id="score-total">0</td></tr>
+                <tr class="total-row">
+                    <td>총 점수 합계</td>
+                    <td class="score-cell p1-col-cell active-cell-bg" id="p1-total" style="text-align: right;">0</td>
+                    <td class="score-cell p2-col-cell" id="p2-total" style="text-align: right;">0</td>
+                </tr>
             </tfoot>
         </table>
     </div>
@@ -98,35 +207,39 @@
 <div id="modal">
     <div class="modal-content">
         <h2>게임 종료!</h2>
-        <p>최종 점수: <strong id="final-score">0</strong>점</p>
+        <div id="winner-announcement" class="winner-announcement">우승자 판정 중...</div>
+        <div class="final-scores">
+            <div>플레이어 1: <strong id="modal-p1-score" class="score-p1-text">0</strong>점</div>
+            <div>플레이어 2: <strong id="modal-p2-score" class="score-p2-text">0</strong>점</div>
+        </div>
         <button id="restart-btn" onclick="initGame()">다시 시작하기</button>
     </div>
 </div>
 
 <script>
-    // 게임 상태 변수
+    // 게임 운영 데이터 변수
     let dices = [0, 0, 0, 0, 0];
     let keep = [false, false, false, false, false];
     let rollsLeft = 3;
-    let round = 1;
-    let hasRolled = false; // 주사위를 한 번이라도 굴렸는지 체크 (버그 방지용)
     
-    // 점수 상태 (null이면 아직 채우지 않은 상태)
-    let scores = {
-        ones: null, twos: null, threes: null, fours: null, fives: null, sixes: null,
-        threeOfAKind: null, fourOfAKind: null, fullHouse: null,
-        smallStraight: null, largeStraight: null, yahtzee: null, chance: null
-    };
+    // 각 플레이어별 단독 라운드 진행 횟수 (버그 원천 차단)
+    let player1Rounds = 0;
+    let player2Rounds = 0;
+    let currentPlayer = 1; // 1: 플레이어 1, 2: 플레이어 2
+    let hasRolled = false; 
+
+    // 각각 분리된 점수 객체 데이터
+    let scores1 = { ones: null, twos: null, threes: null, fours: null, fives: null, sixes: null, threeOfAKind: null, fourOfAKind: null, fullHouse: null, smallStraight: null, largeStraight: null, yahtzee: null, chance: null };
+    let scores2 = { ones: null, twos: null, threes: null, fours: null, fives: null, sixes: null, threeOfAKind: null, fourOfAKind: null, fullHouse: null, smallStraight: null, largeStraight: null, yahtzee: null, chance: null };
 
     const diceElements = document.querySelectorAll('.dice');
 
-    // 주사위 굴리기 함수
+    // 무작위 주사위 굴리기 로직
     function rollDice() {
         if (rollsLeft === 0) return;
 
         hasRolled = true;
         
-        // 킵(Keep)되지 않은 주사위만 새로 굴림
         for (let i = 0; i < 5; i++) {
             if (!keep[i]) {
                 dices[i] = Math.floor(Math.random() * 6) + 1;
@@ -136,31 +249,27 @@
         
         rollsLeft--;
         updateDiceUI();
-        updatePreviews(); // 가능한 점수 미리보기 계산
+        renderScoreboard(); // 현재 턴인 사람에게 족보 점수 실시간 미리보기 제공
 
         const rollBtn = document.getElementById('roll-btn');
         rollBtn.innerText = `주사위 굴리기 (남은 횟수: ${rollsLeft})`;
         
         if (rollsLeft === 0) {
             rollBtn.disabled = true;
-            document.getElementById('info-text').innerText = "더 이상 굴릴 수 없습니다. 점수를 기록하세요!";
+            document.getElementById('info-text').innerText = "더 이상 주사위를 굴릴 수 없습니다.\\n비어있는 족보 행을 클릭해 점수를 확정하세요!";
         } else {
-            document.getElementById('info-text').innerText = "원하는 주사위를 클릭해 고정(Keep)하고 다시 굴릴 수 있습니다.";
+            document.getElementById('info-text').innerText = "킵할 주사위를 선택 후 다시 굴리거나,\\n원하면 이대로 점수판을 클릭해 기록할 수 있습니다.";
         }
     }
 
-    // 주사위 클릭 시 킵(Keep) 토글
+    // 주사위 고정 선택 기능
     function toggleKeep(index) {
-        if (!hasRolled || rollsLeft === 0 && keep[index]) {
-            // 주사위를 안 굴렸거나 턴이 끝났는데 킵을 해제하려고 할 때 제외
-        }
-        if (!hasRolled) return;
-        
+        if (!hasRolled || rollsLeft === 0) return;
         keep[index] = !keep[index];
         updateDiceUI();
     }
 
-    // 화면에 주사위 업데이트
+    // 주사위 렌더링 동기화
     function updateDiceUI() {
         for (let i = 0; i < 5; i++) {
             diceElements[i].innerText = dices[i] > 0 ? dices[i] : "";
@@ -172,9 +281,9 @@
         }
     }
 
-    // 현재 주사위로 얻을 수 있는 점수 계산 로직
+    // 엄격한 야찌 규칙 기반 점수 계산기
     function calculatePossibleScores() {
-        const counts = [0, 0, 0, 0, 0, 0, 0]; // index 1~6 사용
+        const counts = [0, 0, 0, 0, 0, 0, 0];
         let sum = 0;
         
         dices.forEach(val => {
@@ -191,168 +300,251 @@
             sixes: counts[6] * 6,
             threeOfAKind: counts.some(c => c >= 3) ? sum : 0,
             fourOfAKind: counts.some(c => c >= 4) ? sum : 0,
-            yahtzee: counts.some(c => c === 5) ? 50 : 0, // 5개가 같아야만 50점
+            yahtzee: counts.some(c => c === 5) ? 50 : 0,
             chance: sum
         };
 
-        // Full House (3개 동일 + 2개 동일, 야찌도 풀하우스로 인정)
+        // Full House 검사 (3개 동일 눈 + 2개 동일 눈, 야찌인 경우도 풀하우스 보너스 획득 가능)
         const has3 = counts.some(c => c === 3);
         const has2 = counts.some(c => c === 2);
         possible.fullHouse = (has3 && has2) || possible.yahtzee === 50 ? 25 : 0;
 
-        // Straight 계산을 위한 중복 제거 및 정렬된 문자열
-        const uniqueSorted = [...new Set(dices)].sort().join('');
+        // 스트레이트 판별을 위한 중복 제거 오름차순 정렬
+        const uniqueSorted = [...new Set(dices)].sort((a, b) => a - b).join('');
         
-        // Small Straight (4개 연속)
+        // Small Straight (4연속 숫자 검사)
         if (/1234|2345|3456/.test(uniqueSorted)) possible.smallStraight = 30;
         else possible.smallStraight = 0;
 
-        // Large Straight (5개 연속)
+        // Large Straight (5연속 숫자 검사)
         if (/12345|23456/.test(uniqueSorted)) possible.largeStraight = 40;
         else possible.largeStraight = 0;
 
         return possible;
     }
 
-    // 족보 미리보기 업데이트
-    function updatePreviews() {
-        if (!hasRolled) return;
-        const possible = calculatePossibleScores();
-
-        for (const key in scores) {
-            if (scores[key] === null) {
-                const td = document.getElementById(`score-${key}`);
-                td.innerText = possible[key];
-                td.classList.add('preview');
-            }
+    // 족보 테이블 동적 렌더링 로직 (점수 확정 및 미리보기 연출)
+    function renderScoreboard() {
+        const possible = hasRolled ? calculatePossibleScores() : null;
+        
+        // 턴 기반 테이블 헤더 하이라이트 전환
+        const p1Header = document.getElementById('p1-header');
+        const p2Header = document.getElementById('p2-header');
+        
+        if (currentPlayer === 1) {
+            p1Header.classList.add('active-turn');
+            p2Header.classList.remove('active-turn');
+        } else {
+            p1Header.classList.remove('active-turn');
+            p2Header.classList.add('active-turn');
         }
+        
+        const categories = [
+            'ones', 'twos', 'threes', 'fours', 'fives', 'sixes',
+            'threeOfAKind', 'fourOfAKind', 'fullHouse', 
+            'smallStraight', 'largeStraight', 'yahtzee', 'chance'
+        ];
+        
+        categories.forEach(cat => {
+            const cell1 = document.getElementById(`p1-${cat}`);
+            const cell2 = document.getElementById(`p2-${cat}`);
+            
+            // 플레이어 1 점수칸 렌더링
+            if (scores1[cat] !== null) {
+                cell1.innerText = scores1[cat];
+                cell1.className = 'score-cell filled-p1';
+            } else {
+                if (currentPlayer === 1 && possible !== null) {
+                    cell1.innerText = possible[cat];
+                    cell1.className = 'score-cell preview';
+                } else {
+                    cell1.innerText = '';
+                    cell1.className = 'score-cell';
+                }
+            }
+            
+            // 플레이어 2 점수칸 렌더링
+            if (scores2[cat] !== null) {
+                cell2.innerText = scores2[cat];
+                cell2.className = 'score-cell filled-p2';
+            } else {
+                if (currentPlayer === 2 && possible !== null) {
+                    cell2.innerText = possible[cat];
+                    cell2.className = 'score-cell preview';
+                } else {
+                    cell2.innerText = '';
+                    cell2.className = 'score-cell';
+                }
+            }
+            
+            // 현재 턴인 플레이어의 열 배경 음영 활성화
+            if (currentPlayer === 1) {
+                cell1.classList.add('active-cell-bg');
+                cell2.classList.remove('active-cell-bg');
+            } else {
+                cell1.classList.remove('active-cell-bg');
+                cell2.classList.add('active-cell-bg');
+            }
+        });
+        
+        // 보너스 포인트 및 합산액 리프레시
+        calculateTotals();
     }
 
-    // 점수 기록하기 (클릭 이벤트)
+    // 점수 선택 및 확정 처리 (버그 방어 로직 완비)
     function selectScore(category) {
-        // 규칙 방어: 주사위를 한 번도 굴리지 않았거나, 이미 기록된 칸이면 무시
-        if (!hasRolled || scores[category] !== null) {
-            if(!hasRolled) alert("주사위를 먼저 굴려주세요!");
+        if (!hasRolled) {
+            alert("보드게임 규칙: 주사위를 최소 1회 굴린 후 점수 기록이 가능합니다!");
+            return;
+        }
+
+        let currentScores = currentPlayer === 1 ? scores1 : scores2;
+        
+        if (currentScores[category] !== null) {
+            alert("이미 해당 칸에 점수를 기록했습니다. 비어있는 칸을 선택해 주세요!");
             return;
         }
 
         const possible = calculatePossibleScores();
-        scores[category] = possible[category]; // 점수 확정
+        currentScores[category] = possible[category]; // 현재 턴인 유저의 점수 객체에 기록
 
-        // UI 업데이트
-        const row = document.getElementById(`row-${category}`);
-        const td = document.getElementById(`score-${category}`);
-        row.classList.add('filled');
-        td.classList.remove('preview');
-        td.innerText = scores[category];
-
-        // 턴 넘기기
+        // 턴 전환 이벤트 발동
         nextTurn();
     }
 
-    // 상단 보너스 및 총합 계산
-    function calculateTotal() {
-        let upperTotal = 0;
-        let lowerTotal = 0;
-
-        // 상단 합 계산
-        ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'].forEach(key => {
-            if (scores[key] !== null) upperTotal += scores[key];
+    // 상단 보너스 조건 검사 및 점수 합산 집계
+    function calculateTotals() {
+        let u1 = 0, u2 = 0;
+        ['ones', 'twos', 'threes', 'fours', 'fives', 'sixes'].forEach(cat => {
+            if (scores1[cat] !== null) u1 += scores1[cat];
+            if (scores2[cat] !== null) u2 += scores2[cat];
         });
-
-        // 보너스 로직
-        let bonus = 0;
-        if (upperTotal >= 63) {
-            bonus = 35;
-        }
-        document.getElementById('score-bonus').innerText = bonus;
-
-        // 하단 합 계산
-        ['threeOfAKind', 'fourOfAKind', 'fullHouse', 'smallStraight', 'largeStraight', 'yahtzee', 'chance'].forEach(key => {
-            if (scores[key] !== null) lowerTotal += scores[key];
+        
+        let b1 = u1 >= 63 ? 35 : 0;
+        let b2 = u2 >= 63 ? 35 : 0;
+        
+        document.getElementById('p1-bonus').innerText = `${b1} (${u1}/63)`;
+        document.getElementById('p2-bonus').innerText = `${b2} (${u2}/63)`;
+        
+        let l1 = 0, l2 = 0;
+        ['threeOfAKind', 'fourOfAKind', 'fullHouse', 'smallStraight', 'largeStraight', 'yahtzee', 'chance'].forEach(cat => {
+            if (scores1[cat] !== null) l1 += scores1[cat];
+            if (scores2[cat] !== null) l2 += scores2[cat];
         });
-
-        const finalTotal = upperTotal + bonus + lowerTotal;
-        document.getElementById('score-total').innerText = finalTotal;
-        return finalTotal;
+        
+        let total1 = u1 + b1 + l1;
+        let total2 = u2 + b2 + l2;
+        
+        document.getElementById('p1-total').innerText = total1;
+        document.getElementById('p2-total').innerText = total2;
+        
+        return { total1, total2 };
     }
 
-    // 다음 턴 준비
+    // 턴 교체 처리 및 유저별 개별 턴 수 카운트 제어
     function nextTurn() {
-        calculateTotal(); // 점수 총합 반영
+        if (currentPlayer === 1) {
+            player1Rounds++;
+        } else {
+            player2Rounds++;
+        }
         
-        if (round === 13) {
+        // 각 유저가 13개 슬롯을 완전히 다 채웠다면 최종 승패 정산 돌입
+        if (player1Rounds === 13 && player2Rounds === 13) {
+            renderScoreboard();
             endGame();
             return;
         }
-
-        // 상태 초기화
-        round++;
+        
+        // 턴 스와이프 및 하드웨어 초기화
+        currentPlayer = currentPlayer === 1 ? 2 : 1;
         rollsLeft = 3;
         hasRolled = false;
         dices = [0, 0, 0, 0, 0];
         keep = [false, false, false, false, false];
+        
+        updateTurnUI();
+        renderScoreboard();
+    }
 
-        // UI 초기화
-        document.getElementById('round-display').innerText = round;
+    // 현재 기물 및 UI를 진행 중인 플레이어 색상 테마로 덮어씌움
+    function updateTurnUI() {
+        const turnText = document.getElementById('info-text-turn');
+        const roundDisplay = document.getElementById('round-display');
         const rollBtn = document.getElementById('roll-btn');
+        const body = document.body;
+        
+        if (currentPlayer === 1) {
+            turnText.innerText = "플레이어 1의 턴";
+            turnText.className = "turn-indicator p1-indicator";
+            roundDisplay.innerText = player1Rounds + 1;
+            rollBtn.className = "p1-btn";
+            body.className = "p1-turn";
+        } else {
+            turnText.innerText = "플레이어 2의 턴";
+            turnText.className = "turn-indicator p2-indicator";
+            roundDisplay.innerText = player2Rounds + 1;
+            rollBtn.className = "p2-btn";
+            body.className = "p2-turn";
+        }
+        
         rollBtn.disabled = false;
         rollBtn.innerText = `주사위 굴리기 (남은 횟수: 3)`;
-        document.getElementById('info-text').innerText = "새 라운드입니다. 주사위를 굴려주세요!";
+        document.getElementById('info-text').innerText = "주사위를 굴려주세요!";
         
         diceElements.forEach(el => {
             el.classList.add('hidden');
             el.classList.remove('keep');
+            el.innerText = '';
         });
-
-        // 채우지 않은 미리보기 지우기
-        for (const key in scores) {
-            if (scores[key] === null) {
-                const td = document.getElementById(`score-${key}`);
-                td.innerText = "";
-                td.classList.remove('preview');
-            }
-        }
     }
 
-    // 게임 종료 처리
+    // 게임 종료 처리 및 최종 순위 발표
     function endGame() {
-        const finalTotal = calculateTotal();
-        document.getElementById('final-score').innerText = finalTotal;
+        const { total1, total2 } = calculateTotals();
+        document.getElementById('modal-p1-score').innerText = total1;
+        document.getElementById('modal-p2-score').innerText = total2;
+        
+        const announcement = document.getElementById('winner-announcement');
+        if (total1 > total2) {
+            announcement.innerText = "🎉 플레이어 1 최종 우승! 🎉";
+            announcement.className = "winner-announcement winner-p1";
+        } else if (total2 > total1) {
+            announcement.innerText = "🎉 플레이어 2 최종 우승! 🎉";
+            announcement.className = "winner-announcement winner-p2";
+        } else {
+            announcement.innerText = "🤝 동점으로 인한 무승부! 🤝";
+            announcement.className = "winner-announcement winner-draw";
+        }
+        
         document.getElementById('modal').style.display = 'flex';
     }
 
-    // 게임 완전 초기화 (재시작)
+    // 전반적인 변수 스코프 초기화 및 신규 대전 활성화
     function initGame() {
-        round = 1;
+        player1Rounds = 0;
+        player2Rounds = 0;
+        currentPlayer = 1;
         rollsLeft = 3;
         hasRolled = false;
         dices = [0, 0, 0, 0, 0];
         keep = [false, false, false, false, false];
         
-        for (const key in scores) {
-            scores[key] = null;
-            const row = document.getElementById(`row-${key}`);
-            const td = document.getElementById(`score-${key}`);
-            row.classList.remove('filled');
-            td.innerText = "";
-            td.classList.remove('preview');
-        }
+        // 데이터 오브젝트 전면 초기화
+        for (const key in scores1) { scores1[key] = null; scores2[key] = null; }
 
         document.getElementById('modal').style.display = 'none';
-        document.getElementById('score-bonus').innerText = '0';
-        document.getElementById('score-total').innerText = '0';
-        document.getElementById('round-display').innerText = round;
         
-        const rollBtn = document.getElementById('roll-btn');
-        rollBtn.disabled = false;
-        rollBtn.innerText = `주사위 굴리기 (남은 횟수: 3)`;
-        document.getElementById('info-text').innerText = "게임을 시작합니다. 주사위를 굴려주세요!";
-
-        diceElements.forEach(el => el.classList.add('hidden'));
+        // UI 모듈 디폴트 세팅 원복
+        updateTurnUI();
+        renderScoreboard();
     }
-
 </script>
 
 </body>
 </html>
+"""
+
+with open("index.html", "w", encoding="utf-8") as f:
+    f.write(html_content)
+print("index.html file successfully generated.")
