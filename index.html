@@ -1,0 +1,21 @@
+// 점수 계산 및 기록 함수 예시
+function scoreSelection(category, dices) {
+    let score = 0;
+    
+    // 1. 이미 야찌를 기록했는데 또 야찌가 나온 경우 (보너스 야찌 검사)
+    if (isYahtzee(dices) && scoreboard.yahtzee === 50) {
+        scoreboard.bonusYahtzeeCount += 1;
+        score += 100; // 보너스 100점 추가!
+        
+        // 추가로 조커 규칙에 따른 칸 채우기 로직 실행...
+    }
+    
+    // 2. 일반 족보 점수 계산
+    // ... 카테고리에 따른 점수 계산 ...
+    
+    // 3. 상단 보너스 체크
+    let upperSum = scoreboard.ones + scoreboard.twos + scoreboard.threes + scoreboard.fours + scoreboard.fives + scoreboard.sixes;
+    if (upperSum >= 63) {
+        scoreboard.upperBonus = 35;
+    }
+}
